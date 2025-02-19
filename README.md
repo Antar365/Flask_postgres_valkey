@@ -1,5 +1,5 @@
  [![Netlify Status](https://api.netlify.com/api/v1/badges/168507ed-6e7d-40a4-bb68-f9d12ad4df4b/deploy-status)](https://app.netlify.com/sites/srf/deploys)
-## Student Registration Form Project
+## Employee Registration Form Project
 
 This project is a simple web application for student registration. It allows users to input their personal details such as first name, last name, gender, age, date of birth, email, password, phone number, address, state, pin code, hobbies, and upload a photo. The form includes validation for required fields, email format, password strength, phone number format, and file size for the photo upload.
 
@@ -26,7 +26,7 @@ This project is a simple web application for student registration. It allows use
 To run this project locally, simply download the files and open the `index.html` file in a web browser.
 
 ```bash
-git clone https://github.com/surajkumar345678/student-registration-form.git
+git clone https://github.com/Antar365/student-registration-form.git
 cd student-registration-form
 ```
 
