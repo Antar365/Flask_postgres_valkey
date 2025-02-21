@@ -177,7 +177,7 @@ create_tasks_table()  # Ensure the table is created when the app starts
 
 @app.route("/")
 def main():
-    return "Welcome to the Task Manager with PostgreSQL and Redis!"
+    return render_template("index.html")
 
 # Endpoint to add a task
 @app.route("/add_task", methods=["POST"])

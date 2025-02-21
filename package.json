@@ -1,0 +1,26 @@
+{
+    "name": "project_information",
+    "version": "1.0.0",
+    "description": "[![Netlify Status](https://api.netlify.com/api/v1/badges/168507ed-6e7d-40a4-bb68-f9d12ad4df4b/deploy-status)](https://app.netlify.com/sites/srf/deploys) ## Student Registration Form Project",
+    "main": "script.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@valkey/valkey-glide": "^1.2.1",
+        "axios": "^1.7.9",
+        "body-parser": "^1.20.3",
+        "cors": "^2.8.5",
+        "express": "^4.21.2",
+        "multer": "^1.4.5-lts.1",
+        "pg": "^8.13.1",
+        "valkey-bloom": "^0.0.1",
+        "valkey-graph": "^0.0.1",
+        "valkey-json": "^0.0.1",
+        "valkey-search": "^0.0.1",
+        "valkey-time-series": "^0.0.1"
+    }
+}
