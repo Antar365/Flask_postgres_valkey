@@ -1,0 +1,3 @@
+postgres_data/
+.local/share/containers/
+node_modules/
