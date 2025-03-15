@@ -307,79 +307,90 @@
     <script src="./script.js" defer></script>
 </head>
 -->
+<<!DOCTYPE html>
+    <html lang="en">
 
-<body>
-    <div class="wrapper">
-        <div class="title">Employee Management</div>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Employee Management</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    </head>
 
-        <!-- Search Form -->
-        <form id="search-form" method="GET" action="/api/employees/search">
-            <div class="form">
-                <div class="inputfield">
-                    <label>Search Employee</label>
-                    <input type="text" class="input" id="search_query" name="search_query" placeholder="Search by ID, Name, or Email" required>
+    <body>
+        <div class="wrapper">
+            <div class="title">Employee Management</div>
+
+            <!-- Search Form -->
+            <form id="search-form">
+                <div class="form">
+                    <div class="inputfield">
+                        <label for="search_query">Search Employee</label>
+                        <input type="text" class="input" id="search_query" placeholder="Search by ID, Name, or Email">
+                    </div>
                 </div>
-                <div class="inputfield">
-                    <button type="submit" class="btn">Search</button>
-                </div>
-            </div>
-        </form>
+            </form>
 
-        <!-- Display Search Results -->
-        <div id="search-results" class="search-results">
-            <!-- Search results will be dynamically displayed here -->
-        </div>
+            <!-- Display Search Results -->
+            <div id="search-results" class="search-results"></div>
 
-        <!-- Registration Form -->
-        <form id="employee-form" method="POST" action="/api/employees">
-            <div class="form">
-                <div class="title">Employee Registration Form</div>
+            <!-- Registration Form -->
+            <form id="employee-form">
+                <div class="form">
+                    <div class="title">Employee Registration Form</div>
 
-                <div class="inputfield">
-                    <label>First Name</label>
-                    <input type="text" class="input" id="first_name" name="first_name" placeholder="Enter first name" maxlength="30" pattern="[A-Z a-z]{1,32}" title="Enter only alphabets" required>
-                </div>
+                    <div class="inputfield">
+                        <label for="employee_id">Employee ID</label>
+                        <input type="text" class="input" id="employee_id" name="employee_id" placeholder="Employee ID" maxlength="6" pattern="[0-9]+" required>
+                    </div>
 
-                <div class="inputfield">
-                    <label>Last Name</label>
-                    <input type="text" class="input" id="last_name" name="last_name" placeholder="Enter last name" maxlength="30" pattern="[A-Za-z]{1,32}" title="Enter only alphabets" required>
-                </div>
+                    <div class="inputfield">
+                        <label for="first_name">First Name</label>
+                        <input type="text" class="input" id="first_name" name="first_name" placeholder="Enter first name" maxlength="30" pattern="[A-Za-z\s]+" required>
+                    </div>
 
-                <div class="inputfield">
-                    <label>Gender</label>
-                    <input type="radio" name="gender" value="Male" required> Male
-                    <input type="radio" name="gender" value="Female" required> Female
-                </div>
+                    <div class="inputfield">
+                        <label for="last_name">Last Name</label>
+                        <input type="text" class="input" id="last_name" name="last_name" placeholder="Enter last name" maxlength="30" pattern="[A-Za-z\s]+" required>
+                    </div>
 
-                <div class="inputfield">
-                    <label>Age</label>
-                    <input type="number" class="input" name="age" placeholder="Enter your age" min="18" max="100" required>
-                </div>
+                    <div class="inputfield">
+                        <label>Gender</label>
+                        <input type="radio" id="male" name="gender" value="Male" checked>
+                        <label for="male">Male</label>
+                        <input type="radio" id="female" name="gender" value="Female">
+                        <label for="female">Female</label>
+                    </div>
 
-                <div class="inputfield">
-                    <label>Date of Birth</label>
-                    <input type="date" class="input" name="dob" required>
-                </div>
+                    <div class="inputfield">
+                        <label for="age">Age</label>
+                        <input type="number" class="input" id="age" name="age" placeholder="Enter your age" min="18" max="100" required>
+                    </div>
 
-                <div class="inputfield">
-                    <label>Email Address</label>
-                    <input type="email" class="input" name="email" placeholder="Enter your email" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,63}$" required>
-                </div>
+                    <div class="inputfield">
+                        <label for="dob">Date of Birth</label>
+                        <input type="date" class="input" id="dob" name="dob" required>
+                    </div>
 
-                <div class="inputfield">
-                    <label>Phone Number</label>
-                    <input type="tel" class="input" name="phone" maxlength="10" placeholder="Enter your phone number" pattern="[7-9]{1}[0-9]{9}" title="Please enter a valid phone number" required>
-                </div>
+                    <div class="inputfield">
+                        <label for="email">Email Address</label>
+                        <input type="email" class="input" id="email" name="email" placeholder="Enter your email" required>
+                    </div>
 
-                <div class="inputfield">
-                    <label>Address</label>
-                    <textarea class="textarea" name="address" placeholder="Enter your address" maxlength="100" required></textarea>
-                </div>
+                    <div class="inputfield">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" class="input" id="phone" name="phone" placeholder="Enter your phone number" pattern="[789][0-9]{9}" required>
+                    </div>
 
-                <div class="inputfield">
-                    <label>State</label>
-                    <div class="custom_select">
-                        <select id="state" name="state" required>
+                    <div class="inputfield">
+                        <label for="address">Address</label>
+                        <textarea class="textarea" id="address" name="address" placeholder="Enter your address" rows="3" required></textarea>
+                    </div>
+
+                    <div class="inputfield">
+                        <label for="state">State</label>
+                        <div class="custom_select">
+                            <select id="state" name="state" required>
                             <option value="">--Select your state--</option>
                             <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
                             <option value="Andhra Pradesh">Andhra Pradesh</option>
@@ -396,29 +407,30 @@
                             <option value="Maharashtra">Maharashtra</option>
                             <option value="West Bengal">West Bengal</option>
                         </select>
+                        </div>
+                    </div>
+
+                    <!-- Terms and Conditions Checkbox -->
+                    <div class="inputfield">
+                        <input type="checkbox" id="declaration" name="declaration">
+                        <label for="declaration">I agree to the Terms and Conditions</label>
+                    </div>
+
+                    <div class="inputfield btns">
+                        <button type="submit" class="btn">Register</button>
+                        <button type="reset" class="btn">Reset</button>
                     </div>
                 </div>
+            </form>
+        </div>
 
-                <div class="inputfield">
-                    <label>Employee ID</label>
-                    <input type="text" class="input" name="employee_id" placeholder="Employee ID" maxlength="6" pattern="[0-9]+" required>
-                </div>
+        <!-- Confirmation Message -->
+        <div id="confirmation-message" class="confirmation-message" style="display: none;">
+            <p>Employee registered successfully!</p>
+        </div>
 
-                <div class="inputfield">
-                    <label class="check">
-                        <input type="checkbox" name="check" value="Declared" required>
-                        <span class="checkmark"></span>
-                    </label>
-                    <p>I hereby declare that the above information provided is true and correct.</p>
-                </div>
+        <script src="{{ url_for('static', filename='script.js') }}"></script>
 
-                <div class="inputfield btns">
-                    <button type="submit" class="btn">Register</button>
-                    <button type="reset" class="btn">Reset</button>
-                </div>
-            </div>
-        </form>
-    </div>
-</body>
+    </body>
 
-</html>
+    </html>

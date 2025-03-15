@@ -134,7 +134,7 @@
 
 
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template , send_from_directory
 import psycopg2
 from psycopg2 import sql 
 from psycopg2.extras import execute_batch
@@ -143,7 +143,7 @@ import redis
 import json
 import random
 import string
-app = Flask(__name__)
+app = Flask(__name__ , static_folder="static")
 
 # Initialize PostgreSQL connection
 def get_db_connection():
@@ -158,55 +158,91 @@ def get_db_connection():
 # Initialize Redis connection
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
-# Create the "tasks" table (run this once during setup)
-def create_tasks_table():
+def create_employees_table():
     connection = get_db_connection()
     cursor = connection.cursor()
+    
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tasks (
-            id SERIAL PRIMARY KEY,
-            task_id VARCHAR(255) UNIQUE NOT NULL,
-            task TEXT NOT NULL
+        CREATE TABLE IF NOT EXISTS employees (
+            employee_id INT PRIMARY KEY,  -- Primary Key should be the first column
+            first_name VARCHAR(30) NOT NULL, 
+            last_name VARCHAR(30) NOT NULL,
+            gender VARCHAR(10) NOT NULL,
+            age INT NOT NULL,
+            dob DATE NOT NULL,
+            email VARCHAR(100) UNIQUE NOT NULL,
+            phone VARCHAR(10) UNIQUE NOT NULL,
+            address TEXT NOT NULL,
+            state VARCHAR(50) NOT NULL  
         );
-    """)
+    """)  # Properly closing the statement
+
     connection.commit()
     cursor.close()
     connection.close()
 
-create_tasks_table()  # Ensure the table is created when the app starts
+create_employees_table()  # Ensure the table is created when the app starts
+
 
 @app.route("/")
 def main():
     return render_template("index.html")
 
+
 # Endpoint to add a task
-@app.route("/add_task", methods=["POST"])
-def add_task():
+@app.route("/register_employee", methods=["POST"])
+def register_employee():
     data = request.get_json()
-    task_id = data.get("task_id")
-    task = data.get("task")
-   
-    if not task_id or not task:
-        return jsonify({"error": "Task ID and task description are required"}), 400
+    employee_id = data.get("employee_id")
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
+    gender = data.get("gender")
+    age = data.get("age")
+    dob = data.get("dob")
+    email = data.get("email")
+    phone = data.get("phone")
+    address = data.get("address")
+    state = data.get("state")
+
+    if not all([employee_id, first_name, last_name, gender, age, dob, email, phone, address, state]):
+        return jsonify({"error": "All fields are required"}), 400
 
     try:
+        # 🔹 1️⃣ Check if Employee ID already exists in Valkey
+        if redis_client.get(employee_id):
+            return jsonify({"error": f"Employee ID '{employee_id}' already exists in Valkey"}), 400
+
+        # Establish PostgreSQL connection
         connection = get_db_connection()
         cursor = connection.cursor()
+
+        # 🔹 2️⃣ If not in Valkey, check PostgreSQL (as a fallback)
+        cursor.execute("SELECT 1 FROM employees WHERE employee_id = %s", (employee_id,))
+        existing = cursor.fetchone()
+        if existing:
+            return jsonify({"error": f"Employee ID '{employee_id}' already exists in PostgreSQL"}), 400
+
+        # 🔹 3️⃣ Insert into PostgreSQL
         cursor.execute("""
-            INSERT INTO tasks (task_id, task) VALUES (%s, %s)
-        """, (task_id, task))
+            INSERT INTO employees (employee_id, first_name, last_name, gender, age, dob, email, phone, address, state)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (employee_id, first_name, last_name, gender, age, dob, email, phone, address, state))
         connection.commit()
+
+        # 🔹 4️⃣ Store in Valkey only after successful PostgreSQL insertion
+        redis_client.set(employee_id, first_name)
+
         cursor.close()
         connection.close()
 
-        # Cache the task in Redis
-        redis_client.set(task_id, task)
+        return jsonify({"message": f"Employee '{first_name} {last_name}' registered successfully"}), 201
 
-        return jsonify({"message": f"Task '{task}' added with ID '{task_id}'"}), 201
-    except psycopg2.IntegrityError:
-        return jsonify({"error": f"Task ID '{task_id}' already exists"}), 400
+    except psycopg2.IntegrityError as e:
+        connection.rollback()
+        return jsonify({"error": f"PostgreSQL Integrity Error: {str(e)}"}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     
 #new
 @app.route("/get_all_keys", methods=["GET"])
@@ -217,163 +253,206 @@ def get_all_keys():
 
 
 # Endpoint to get a task
-@app.route("/get_task/<task_id>", methods=["GET"])
-def get_task(task_id):
-    
-    ##########################3
-    
-    result = {"id": task_id}
+@app.route("/get_employee/<employee_id>", methods=["GET"])
+def get_employee(employee_id):
+    result = {"employee_id": employee_id}
+    first_name = None
+    data_source = None
 
-    # Measure time for Valkey
-    start_time_valkey = time.time()
-    cached_task = redis_client.get(task_id)
-    time_taken_valkey = time.time() - start_time_valkey  
+    # Measure time for Valkey lookup
+    try:
+        start_time_valkey = time.time()
+        cached_name = redis_client.get(employee_id)
+        time_taken_valkey = time.time() - start_time_valkey
 
-    # Measure time for PostgreSQL
-    start_time_postgres = time.time()
-    connection = get_db_connection()
-    cursor = connection.cursor()
-    cursor.execute("SELECT task FROM tasks WHERE task_id = %s", (task_id,))
-    task = cursor.fetchone()
-    cursor.close()
-    connection.close()
-    time_taken_postgres = time.time() - start_time_postgres  
+        if cached_name:
+            first_name = cached_name
+            data_source = "Valkey"
+    except Exception as e:
+        result["valkey_error"] = str(e)
+        time_taken_valkey = None  # If an error occurs, don't report invalid time
 
-    # Check if the task exists in Valkey
-    if cached_task:
-        result["task_from_valkey"] = cached_task
-        result["time_taken_valkey"] = f"{time_taken_valkey:.6f} seconds"
-    else:
-        result["task_from_valkey"] = "Not Found"
+    # Measure time for PostgreSQL lookup
+    try:
+        start_time_postgres = time.time()
+        with get_db_connection() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT first_name FROM employees WHERE employee_id = %s", (employee_id,))
+                employee = cursor.fetchone()
+        time_taken_postgres = time.time() - start_time_postgres
 
-    # Check if the task exists in PostgreSQL
-    if task:
-        result["task_from_postgres"] = task[0]
-        result["time_taken_postgres"] = f"{time_taken_postgres:.6f} seconds"
-    else:
-        result["task_from_postgres"] = "Not Found"
+        if employee:
+            first_name = employee[0]
+            data_source = "PostgreSQL"
+
+            # Cache in Valkey for future use (with expiry)
+            try:
+                redis_client.setex(employee_id, 3600, first_name)  # Cache for 1 hour
+            except Exception as e:
+                result["valkey_cache_error"] = str(e)
+    except Exception as e:
+        result["postgres_error"] = str(e)
+        time_taken_postgres = None  # If an error occurs, don't report invalid time
+
+    if not first_name:
+        return jsonify({"error": f"No employee found with ID '{employee_id}'"}), 404
+
+    # Update response with both times
+    result.update({
+        "first_name": first_name,
+        "source": data_source,
+        "time_taken_valkey": time_taken_valkey,
+        "time_taken_postgres": time_taken_postgres
+    })
 
     return jsonify(result), 200
-    
-    ####################################
-    
-    
-    
-    
-    
-    # Check if the task is cached in Redis
-    cached_task = redis_client.get(task_id)
-    if cached_task:
-        return jsonify({"id": task_id, "task": cached_task, "source": "cache"}), 200
+# Endpoint to list all employees
+@app.route("/list_employees", methods=["GET"])
+def list_employees():
+    # Get all employee IDs (keys)
+    employee_keys = redis_client.keys("*")  # Get all keys
 
-    # If not in cache, retrieve from PostgreSQL
+    if not employee_keys:
+        return jsonify({"employees": [], "source": "valkey"}), 200  # No employees found
+
+    employee_list = []
+    for key in employee_keys:
+        employee_name = redis_client.get(key)  # Get the first name (value)
+
+        if employee_name:  # Ensure it's not empty
+            employee_list.append({
+                "employee_id": key,  # Key is the Employee ID
+                "first_name": employee_name  # Value is the First Name
+            })
+
+    return jsonify({"employees": employee_list, "source": "valkey"}), 200
+
+# Endpoint to delete an employee
+@app.route("/delete_employee/<employee_id>", methods=["DELETE"])
+def delete_employee(employee_id):
     connection = get_db_connection()
     cursor = connection.cursor()
-    cursor.execute("""
-        SELECT task FROM tasks WHERE task_id = %s
-    """, (task_id,))
-    task = cursor.fetchone()
-    cursor.close()
-    connection.close()
-   
-    if not task:
-        return jsonify({"error": f"No task found with ID '{task_id}'"}), 404
-
-    # Cache the retrieved task in Redis
-    redis_client.set(task_id, task[0])
-
-    return jsonify({"id": task_id, "task": task[0], "source": "database"}), 200
-
-# Endpoint to list all tasks
-@app.route("/list_tasks", methods=["GET"])
-def list_tasks():
-    # Check if the tasks list is cached in Redis
-    cached_tasks = redis_client.get("all_tasks")
-    if cached_tasks:
-        return jsonify({"tasks": json.loads(cached_tasks), "source": "cache"}), 200
-
-    # If not cached, retrieve from PostgreSQL
-    connection = get_db_connection()
-    cursor = connection.cursor()
-    cursor.execute("SELECT task_id, task FROM tasks")
-    tasks = cursor.fetchall()
-    cursor.close()
-    connection.close()
-   
-    task_list = [{"id": row[0], "task": row[1]} for row in tasks]
-
-    # Cache the tasks list in Redis
-    redis_client.set("all_tasks", json.dumps(task_list))
-
-    return jsonify({"tasks": task_list, "source": "database"}), 200
-
-# Endpoint to delete a task
-@app.route("/delete_task/<task_id>", methods=["DELETE"])
-def delete_task(task_id):
-    connection = get_db_connection()
-    cursor = connection.cursor()
-    cursor.execute("""
-        DELETE FROM tasks WHERE task_id = %s
-    """, (task_id,))
+    
+    # Delete from PostgreSQL
+    cursor.execute("DELETE FROM employees WHERE employee_id = %s", (employee_id,))
     result = cursor.rowcount
     connection.commit()
     cursor.close()
     connection.close()
-   
+
     if result == 0:
-        return jsonify({"error": f"No task found with ID '{task_id}'"}), 404
+        return jsonify({"error": f"No employee found with ID '{employee_id}'"}), 404
 
-    # Remove the task from Redis
-    redis_client.delete(task_id)
+    # Remove employee from Valkey
+    redis_client.delete(employee_id)
 
-    # Invalidate the cached tasks list
-    redis_client.delete("all_tasks")
+    # Invalidate cached employee list
+    redis_client.delete("all_employees")
 
-    return jsonify({"message": f"Task with ID '{task_id}' deleted"}), 200
-
-
+    return jsonify({"message": f"Employee with ID '{employee_id}' deleted"}), 200
 
 
+# Generate a random email
+def generate_email(first_name, last_name):
+    domains = ["gmail.com", "yahoo.com", "outlook.com", "company.com"]
+    return f"{first_name.lower()}.{last_name.lower()}{random.randint(1000, 9999)}@{random.choice(domains)}"
 
-# Generate Unique Keys and 7-Digit Integer Values
-def generate_unique_data(n):
-    unique_keys = set()
+# Generate a random phone number
+def generate_phone_number():
+    return str(random.randint(6000000000, 9999999999))  # 10-digit Indian phone number
+
+# Generate unique employee records with uniqueness checks for email, phone, and employee ID
+def generate_unique_employees(n, existing_employees=set(), existing_emails=set(), existing_phones=set()):
+    records = []
     
-    while len(unique_keys) < n:
-        key = ''.join(random.choices(string.ascii_letters + string.digits, k=10))  # 10-char unique key
-        unique_keys.add(key)
-    
-    # Create a list of (key, value) pairs
-    data = [(key, random.randint(1000000, 9999999)) for key in unique_keys]  # 7-digit integer value
-    return data
+    names = ["John", "Alice", "Bob", "Emma", "Michael", "Sophia", "Liam", "Olivia", "Ethan", "Ava"]
+    last_names = ["Doe", "Smith", "Brown", "Wilson", "Taylor", "Johnson", "Lee", "Martinez"]
+    addresses = ["123 Main St", "456 Elm St", "789 Oak St", "101 Pine St"]
+    states = ["California", "Texas", "New York", "Florida", "Illinois"]
 
-# Endpoint to insert 1 Million Records
-@app.route("/insert_bulk", methods=["POST"])
-def insert_bulk_data():
-    n = 1000000  # 1 million entries
+    while len(records) < n:
+        employee_id = random.randint(100000, 999999)  # Unique 6-digit ID
+        email = generate_email("John", "Doe")  # Placeholder names for generation
+        phone = generate_phone_number()
+
+        # Ensure uniqueness of employee ID, email, and phone number
+        if employee_id in existing_employees or email in existing_emails or phone in existing_phones:
+            continue  # Skip this record if any value is already taken
+
+        first_name = random.choice(names)
+        last_name = random.choice(last_names)
+        address = random.choice(addresses)
+        state = random.choice(states)
+        gender = random.choice(["Male", "Female"])
+        age = random.randint(20, 60)
+        dob = f"{random.randint(1960, 2005)}-{random.randint(1, 12):02d}-{random.randint(1, 28):02d}"  # Random DOB
+
+        # Add the new record
+        records.append((employee_id, first_name, last_name, gender, age, dob, email, phone, address, state))
+        
+        # Add to the sets to track uniqueness
+        existing_employees.add(employee_id)
+        existing_emails.add(email)
+        existing_phones.add(phone)
+
+    return records
+
+# Endpoint to insert bulk employees
+@app.route("/insert_bulk_employees", methods=["POST"])
+def insert_bulk_employees():
+    n = 10000  # Number of employees to insert
     try:
         connection = get_db_connection()
         cursor = connection.cursor()
 
-        # Generate Unique 1 Million Records
-        records = generate_unique_data(n)
+        # Get existing emails and phone numbers from the database
+        cursor.execute("SELECT email, phone FROM employees")
+        existing_data = cursor.fetchall()
+        existing_emails = {email for email, _ in existing_data}
+        existing_phones = {phone for _, phone in existing_data}
+        existing_employees = set()  # Add logic to track employee_id uniqueness as needed
+
+        # Generate Unique Employee Records (with uniqueness checks)
+        records = generate_unique_employees(n, existing_employees, existing_emails, existing_phones)
 
         # Insert into PostgreSQL
-        execute_batch(cursor, "INSERT INTO tasks (task_id, task) VALUES (%s, %s)", records)
+        start_postgres = time.time()
+        execute_batch(cursor, """
+            INSERT INTO employees (employee_id, first_name, last_name, gender, age, dob, email, phone, address, state)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, records)
         connection.commit()
+        postgres_time = time.time() - start_postgres
 
         # Insert into Valkey (Redis) Using Pipeline
+        start_valkey = time.time()
         pipeline = redis_client.pipeline()
-        for task_id, task in records:
-            pipeline.set(task_id, task)
+        for emp in records:
+            employee_id, first_name, last_name, gender, age, dob, email, phone, address, state = emp
+            pipeline.hset(f"employee:{employee_id}", mapping={
+                "first_name": first_name,
+                "last_name": last_name,
+                "gender": gender,
+                "age": age,
+                "dob": dob,
+                "email": email,
+                "phone": phone,
+                "address": address,
+                "state": state
+            })
         pipeline.execute()
+        valkey_time = time.time() - start_valkey
 
         cursor.close()
         connection.close()
 
-        return jsonify({"message": f"Inserted {n} records into PostgreSQL and Valkey!"}), 201
+        return jsonify({
+            "message": f"Inserted {n} employee records into PostgreSQL and Valkey!",
+            "postgres_time_seconds": postgres_time,
+            "valkey_time_seconds": valkey_time
+        }), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8081)
+    app.run(host="0.0.0.0", port=5000 , debug=True)
