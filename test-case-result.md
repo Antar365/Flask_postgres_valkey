@@ -1,4 +1,16 @@
 # Test Cases for Valkey and PostgreSQL Integration
+# Table of Contents
+
+1. [TC1: Adding a New Employee Record](#tc1-adding-a-new-employee-record)
+2. [TC2: Adding an Employee with an Existing ID](#tc2-adding-an-employee-with-an-existing-id)
+3. [TC3: Retrieving Employee Data](#tc3-retrieving-employee-data)
+4. [TC4: Handling Empty or Invalid Input](#tc4-handling-empty-or-invalid-input)
+5. [TC5: Deleting an Employee Record](#tc5-deleting-an-employee-record)
+6. [TC6: Checking Data Consistency](#tc6-checking-data-consistency)
+7. [TC7: Performance Comparison: PostgreSQL vs. Valkey Data Retrieval](#tc7-performance-comparison-postgresql-vs-valkey-data-retrieval)
+8. [TC8: Performance Comparison: PostgreSQL vs. Valkey Data Retrieval](#tc8-performance-comparison-postgresql-vs-valkey-data-retrieval)
+
+---
 
 ## TC1: Adding a New Employee Record
 
