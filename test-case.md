@@ -8,7 +8,7 @@
 5. [TC5: Deleting an Employee Record](#tc5-deleting-an-employee-record)
 6. [TC6: Checking Data Consistency](#tc6-checking-data-consistency)
 7. [TC7: Performance Comparison: PostgreSQL vs. Valkey Data Retrieval](#tc7-performance-comparison-postgresql-vs-valkey-data-retrieval)
-8. [TC8: Performance Comparison: PostgreSQL vs. Valkey Data Retrieval](#tc8-performance-comparison-postgresql-vs-valkey-data-retrieval)
+8. [TC8: Performance Comparison: PostgreSQL vs. Valkey Data Retrieval](#tc8-performance-comparison-postgresql-vs-valkey-data-Insert)
 
 ---
 
@@ -221,7 +221,7 @@ N/A
 ### Testing Outputs:
 
 
-## TC8: Performance Comparison: PostgreSQL vs. Valkey Data Retrieval
+## TC8: Performance Comparison: PostgreSQL vs. Valkey Data Insert
 
 ### Scenario:
 A user requests employee details using an existing employee ID, and the response times are compared.
